@@ -13,7 +13,8 @@ class HierarchicalTransformer():
     def __init__(self, max_vocabulary = 1000,
                  document_max_sents = 30,
                  summary_max_sents = 4,
-                 max_words_per_sent = 25,
+                 document_max_words_per_sent = 25,
+                 summary_max_words_per_sent = 15,
                  embedding_dims = 300,
                  output_word_encoder_dims = [300, 300, 300],
                  output_sentence_encoder_dims = [300, 300, 300],
@@ -24,7 +25,8 @@ class HierarchicalTransformer():
 
         self.document_max_sents = document_max_sents
         self.summary_max_sents = summary_max_sents
-        self.max_words_per_sent = max_words_per_sent
+        self.document_max_words_per_sent = document_max_words_per_sent
+        self.summary_max_words_per_sent = summary_max_words_per_sent
         self.max_vocabulary = max_vocabulary
         self.embedding_dims = embedding_dims
         self.output_word_encoder_dims = output_word_encoder_dims
@@ -39,10 +41,10 @@ class HierarchicalTransformer():
     def build(self):
 
         self.input_article = Input(shape=(self.document_max_sents,
-                                          self.max_words_per_sent))
+                                          self.document_max_words_per_sent))
 
         self.input_summary = Input(shape=(self.summary_max_sents,
-                                          self.max_words_per_sent))
+                                          self.summary_max_words_per_sent))
 
         self.embedding = Embedding(self.max_vocabulary, self.embedding_dims)
 
@@ -85,22 +87,28 @@ class HierarchicalTransformer():
                                                self.z_summary_sentence_encoder_1,
                                                self.difference])
 
+        self.collapsed = LayerNormalization()(self.collapsed)
+
         self.output = Dense(2, activation="softmax")(self.collapsed)
 
         self.model = Model(inputs = [self.input_article,
                                      self.input_summary],
                            outputs = [self.output])
 
-        #self.attn_model = Model(inputs = self.input_article,
-        #                        outputs = self.attn_article_sentence_encoder_1)
+        self.attn_model = Model(inputs = self.input_article,
+                                outputs = self.attn_article_sentence_encoder_1)
 
 
     def compile(self, model):
         model.compile(optimizer="adam",
                       loss="categorical_crossentropy",
                       metrics = ["accuracy"])
-    def save(self):
-        pass
+
+    def save(self, model, f_name):
+        model.save_weights(f_name)
+
+    def load(self, model, f_name):
+        model.load_weights(f_name)
 
     def __str__(self):
         pass

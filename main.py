@@ -8,14 +8,15 @@ if __name__ == "__main__":
 
     document_max_sents = 30
     summary_max_sents = 4
-    max_words_per_sent = 25 # Obligado compartido entre resumen y documentos por layer normalization
+    document_max_words_per_sent = 25
+    summary_max_words_per_sent = 15
     embedding_dims = 64
-    output_word_encoder_dims = [64, 64, 64] # Debe coincidir con los embeddings
-    output_sentence_encoder_dims = [64, 64, 64]
+    output_word_encoder_dims = [64, 64, 64] # Debe coincidir con los embeddings para las conexiones residuales
+    output_sentence_encoder_dims = [64, 64, 64] # Debe coincidir con los embeddings para las conexiones residuales
     word_attention_dims = [16, 16, 16]
     sentence_attention_dims = [16, 16, 16]
-    n_word_heads = [2, 2, 2]
-    n_sentence_heads = [2, 2, 2]
+    n_word_heads = [4, 4, 4]
+    n_sentence_heads = [4, 4, 4]
     train_path = "./sample_set.csv"
     dev_path = "./sample_set.csv"
     max_vocabulary = 100
@@ -25,32 +26,31 @@ if __name__ == "__main__":
     #string_processor = StringProcessing(train_path, dev_path)
     #print(string_processor.train)
 
-
     # Testing #
     max_vocabulary = 100
-    n_samples = 2000
+    n_samples = 5000
 
     x_pos_articles = np.random.randint(low = 1,
                                    high = 50,
                                    size = (n_samples, document_max_sents,
-                                           max_words_per_sent)
+                                           document_max_words_per_sent)
                                    )
 
     x_pos_summaries = np.random.randint(low = 1,
                                    high = 50,
                                    size = (n_samples, summary_max_sents,
-                                           max_words_per_sent)
+                                           summary_max_words_per_sent)
                                    )
-    x_neg_articles = np.random.randint(low = 51,
-                                   high = 100,
+    x_neg_articles = np.random.randint(low = 40,
+                                   high = 90,
                                    size = (n_samples, document_max_sents,
-                                           max_words_per_sent)
+                                           document_max_words_per_sent)
                                    )
 
-    x_neg_summaries = np.random.randint(low = 51,
-                                   high = 100,
+    x_neg_summaries = np.random.randint(low = 40,
+                                   high = 90,
                                    size = (n_samples, summary_max_sents,
-                                           max_words_per_sent)
+                                           summary_max_words_per_sent)
                                    )
 
     x_articles = np.concatenate((x_pos_articles, x_neg_articles), axis=0)
@@ -61,10 +61,12 @@ if __name__ == "__main__":
     print(x_summaries.shape)
     print(y.shape)
 
+    # Training #
     ht = HierarchicalTransformer(max_vocabulary = max_vocabulary,
                                  document_max_sents = document_max_sents,
                                  summary_max_sents = summary_max_sents,
-                                 max_words_per_sent = max_words_per_sent,
+                                 document_max_words_per_sent = document_max_words_per_sent,
+                                 summary_max_words_per_sent = summary_max_words_per_sent,
                                  embedding_dims = embedding_dims,
                                  output_word_encoder_dims = output_word_encoder_dims,
                                  output_sentence_encoder_dims = output_sentence_encoder_dims,
@@ -77,10 +79,60 @@ if __name__ == "__main__":
     ht.build()
     print(ht.model.summary())
     ht.compile(ht.model)
-    #ht.compile(ht.attn_model)
 
-    ht.model.fit([x_articles, x_summaries],
-                  y = y, batch_size = 32,
-                  epochs = 2, verbose = 1)
+    #ht.load(ht.model, "./first_version_weights.h5")
+    #ht.model.fit([x_articles, x_summaries],
+    #              y = y, batch_size = 64,
+    #              epochs = 1, verbose = 1)
 
+    #ht.save(ht.model, "./first_version_weights.h5")
     #print(ht.model.predict([]))
+    ht.load(ht.model, "./first_version_weights.h5")
+
+    # Visualize Attention #
+
+    #x_article = np.random.randint(low=40, high=90,
+    #                              size = (1, document_max_sents,
+    #                                      document_max_words_per_sent))
+    #np.save("sample.npy", x_article)
+
+    x_article = np.load("sample.npy")
+    attns = ht.attn_model.predict(x_article)[0] # (n cabezales ultimo encoder, n frases, n frases)
+    attn_head_0 = attns[0]
+    attn_head_1 = attns[1]
+    attn_head_2 = attns[2]
+    attn_head_3 = attns[3]
+
+    import matplotlib.pyplot as plt
+
+    print(sum(attn_head_0[0])) # = 1
+    plt.imshow(attn_head_1, cmap='hot', interpolation='nearest')
+    plt.colorbar()
+    plt.show()
+    # Mostrar la más clara y la más oscura, a ver qué pasa ahí
+    print("MAS CLARA:", attn_head_3[:, 13], "\n")
+    print("\n\n\n MAS OSCURA:", attn_head_3[:, 4], "\n")
+
+    print("Palabras de la frase MAS CLARA:", x_article[0][13], "\n")
+    print("\n\n\nPalabras de la frase MAS OSCURA:", x_article[0][4], "\n")
+
+    #print(attn_head_0.shape)
+    #print(attn_head_1.shape)
+
+    # ¿Cual es la frase que más palabras entre 40 y 50 tiene?,
+    # la que más tenga debe ser la que menos atención debe tener
+    # porque el articulo de ejemplo generado pertenece a la clase negativa
+    # (entre 40 y 90), y lo que le distingue de la clase negativa son los valores
+    # que no están en el solapamiento con la clase negativa (entre 40 y 50)
+    # La frase 4 y la 19 son las más marcadas por las atenciones como las que menos aportan.
+    # Una de las dos debe ser la que más valores en el solapamiento tiene, según las atenciones #
+
+    counts = []
+    for i in range(len(x_article[0])):
+        counts.append(0)
+        for j in range(len(x_article[0][i])):
+            if 40 < x_article[0][i][j] < 50:
+                counts[-1] += 1
+
+    # Frase clavada! (4) #
+    print("Frase con mayor solapamiento: %d" % counts.index(max(counts)))
