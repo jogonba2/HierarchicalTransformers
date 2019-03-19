@@ -106,12 +106,13 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     print(sum(attn_head_0[0])) # = 1
-    plt.imshow(attn_head_1, cmap='hot', interpolation='nearest')
+    plt.imshow(attn_head_3, cmap='hot', interpolation='nearest')
     plt.colorbar()
     plt.show()
+
     # Mostrar la más clara y la más oscura, a ver qué pasa ahí
-    print("MAS CLARA:", attn_head_3[:, 13], "\n")
-    print("\n\n\n MAS OSCURA:", attn_head_3[:, 4], "\n")
+    print("MAS CLARA:", attn_head_2[:, 13], "\n")
+    print("\n\n\n MAS OSCURA:", attn_head_2[:, 4], "\n")
 
     print("Palabras de la frase MAS CLARA:", x_article[0][13], "\n")
     print("\n\n\nPalabras de la frase MAS OSCURA:", x_article[0][4], "\n")
@@ -122,10 +123,13 @@ if __name__ == "__main__":
     # ¿Cual es la frase que más palabras entre 40 y 50 tiene?,
     # la que más tenga debe ser la que menos atención debe tener
     # porque el articulo de ejemplo generado pertenece a la clase negativa
-    # (entre 40 y 90), y lo que le distingue de la clase negativa son los valores
-    # que no están en el solapamiento con la clase negativa (entre 40 y 50)
-    # La frase 4 y la 19 son las más marcadas por las atenciones como las que menos aportan.
-    # Una de las dos debe ser la que más valores en el solapamiento tiene, según las atenciones #
+    # (entre 40 y 90), y lo que le distingue de la clase positiva son los valores
+    # que no están en el solapamiento con esta (entre 40 y 50)
+    # La frase 4 y la 19 son las que menos atención tienen (las que menos aportan i.e. muchos valores entre 40 y 50).
+    # Una de las dos debe ser la que más valores en el solapamiento tiene, según las atenciones (LO ES!)#
+    # Lo mismo pero para las frases con valores mayores de 50, estas son las que más atención deben tener,
+    # porque son las que más contribuyen a decir la clase negativa #
+    # según las atenciones, las que más valores mayores de 50 tienen son las frases 8 y 13 (LO SON!)#
 
     counts = []
     for i in range(len(x_article[0])):
@@ -135,4 +139,7 @@ if __name__ == "__main__":
                 counts[-1] += 1
 
     # Frase clavada! (4) #
-    print("Frase con mayor solapamiento: %d" % counts.index(max(counts)))
+    print("Frases con mayor solapamiento:" , [i for i,val in enumerate(counts) if val==max(counts)])
+
+    # Frases clavadas! (8 y 13) #
+    print("Frases con menor solapamiento:" , [i for i,val in enumerate(counts) if val==min(counts)])
