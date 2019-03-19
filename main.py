@@ -27,6 +27,7 @@ if __name__ == "__main__":
     #print(string_processor.train)
 
     # Testing #
+
     max_vocabulary = 100
     n_samples = 5000
 
@@ -80,14 +81,14 @@ if __name__ == "__main__":
     print(ht.model.summary())
     ht.compile(ht.model)
 
-    #ht.load(ht.model, "./first_version_weights.h5")
+    #ht.load(ht.model, "./second_version_weights.h5")
     #ht.model.fit([x_articles, x_summaries],
     #              y = y, batch_size = 64,
-    #              epochs = 1, verbose = 1)
+    #              epochs = 2, verbose = 1)
 
-    #ht.save(ht.model, "./first_version_weights.h5")
+    #ht.save(ht.model, "./second_version_weights.h5")
     #print(ht.model.predict([]))
-    ht.load(ht.model, "./first_version_weights.h5")
+    ht.load(ht.model, "./second_version_weights.h5")
 
     # Visualize Attention #
 
@@ -106,13 +107,13 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     print(sum(attn_head_0[0])) # = 1
-    plt.imshow(attn_head_3, cmap='hot', interpolation='nearest')
+    plt.imshow(attn_head_0, cmap='gray', interpolation='nearest')
     plt.colorbar()
     plt.show()
 
     # Mostrar la más clara y la más oscura, a ver qué pasa ahí
-    print("MAS CLARA:", attn_head_2[:, 13], "\n")
-    print("\n\n\n MAS OSCURA:", attn_head_2[:, 4], "\n")
+    print("MAS CLARA:", attn_head_0[:, 13], "\n")
+    print("\n\n\n MAS OSCURA:", attn_head_0[:, 4], "\n")
 
     print("Palabras de la frase MAS CLARA:", x_article[0][13], "\n")
     print("\n\n\nPalabras de la frase MAS OSCURA:", x_article[0][4], "\n")
@@ -143,3 +144,17 @@ if __name__ == "__main__":
 
     # Frases clavadas! (8 y 13) #
     print("Frases con menor solapamiento:" , [i for i,val in enumerate(counts) if val==min(counts)])
+
+
+    # Testing pero con promedio de atencion de todos los cabezales #
+
+    print(attns.shape)
+    v_sum = attns.sum(axis=0) # Suma de todos los cabezales
+    v_sum = np.expand_dims(v_sum.sum(axis=0), axis=0) # Suma vertical, cada frase como la suma de las atenciones para todas las otras frases
+
+    plt.imshow(v_sum, cmap='gray', interpolation='nearest')
+    plt.colorbar()
+    plt.show()
+
+    print("La frase que menos aporta (promedio de todos los cabezales del último multihead attention): %d" % v_sum[0].argmin())
+    print("La frase que más aporta (promedio de todos los cabezales del último multihead attention): %d" % v_sum[0].argmax())
