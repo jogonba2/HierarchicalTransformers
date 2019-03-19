@@ -3,9 +3,10 @@ from SentenceEncoderBlock import SentenceEncoderBlock
 from PositionalEncoding import PositionalEncoding
 from LayerNormalization import LayerNormalization
 from keras.models import Model
+from keras import backend as K
 from keras.layers import (Input, GlobalMaxPooling1D, Dense,
                           SpatialDropout1D, Embedding,
-                          TimeDistributed)
+                          TimeDistributed, Lambda, Concatenate)
 
 class HierarchicalTransformer():
 
@@ -58,26 +59,46 @@ class HierarchicalTransformer():
                                                self.word_attention_dims[0],
                                                self.n_word_heads[0])
 
-        z_article_word_encoder_1 = TimeDistributed(self.word_encoder_1)(self.ep_article)
-        z_summary_word_encoder_1 = TimeDistributed(self.word_encoder_1)(self.ep_summary)
-        z_article_word_encoder_1 = TimeDistributed(GlobalMaxPooling1D())(z_article_word_encoder_1)
-        z_summary_word_encoder_1 = TimeDistributed(GlobalMaxPooling1D())(z_summary_word_encoder_1)
+        self.z_article_word_encoder_1 = TimeDistributed(self.word_encoder_1)(self.ep_article)
+        self.z_summary_word_encoder_1 = TimeDistributed(self.word_encoder_1)(self.ep_summary)
+        self.z_article_word_encoder_1 = TimeDistributed(GlobalMaxPooling1D())(self.z_article_word_encoder_1)
+        self.z_summary_word_encoder_1 = TimeDistributed(GlobalMaxPooling1D())(self.z_summary_word_encoder_1)
 
         # Sentence Encoders (shared) #
         self.sentence_encoder_1 = SentenceEncoderBlock(self.output_sentence_encoder_dims[0],
                                                        self.sentence_attention_dims[0],
                                                        self.n_sentence_heads[0])
 
-        z_article_sentence_encoder_1,\
-        attn_article_sentence_encoder_1 = self.sentence_encoder_1(z_article_word_encoder_1)
+        self.article_sentence_encoder_1 = self.sentence_encoder_1(self.z_article_word_encoder_1)
+        self.z_article_sentence_encoder_1 = Lambda(lambda x: x[0])(self.article_sentence_encoder_1)
+        self.z_article_sentence_encoder_1 = GlobalMaxPooling1D()(self.z_article_sentence_encoder_1)
+        self.attn_article_sentence_encoder_1 = Lambda(lambda x: x[1])(self.article_sentence_encoder_1) # Solo de los documentos #
 
-        #z_summary_sentence_encoder_1 = self.sentence_encoder_1(z_summary_word_encoder_1)
+        self.summary_sentence_encoder_1 = self.sentence_encoder_1(self.z_summary_word_encoder_1)
+        self.z_summary_sentence_encoder_1 = Lambda(lambda x: x[0])(self.summary_sentence_encoder_1)
+        self.z_summary_sentence_encoder_1 = GlobalMaxPooling1D()(self.z_summary_sentence_encoder_1)
+
+        self.difference = Lambda(lambda x: K.abs(x[0] - x[1]))([self.z_article_sentence_encoder_1,
+                                                                self.z_summary_sentence_encoder_1])
+
+        self.collapsed = Concatenate(axis=-1)([self.z_article_sentence_encoder_1,
+                                               self.z_summary_sentence_encoder_1,
+                                               self.difference])
+
+        self.output = Dense(2, activation="softmax")(self.collapsed)
 
         self.model = Model(inputs = [self.input_article,
                                      self.input_summary],
-                           outputs = [z_article_sentence_encoder_1])
+                           outputs = [self.output])
+
+        #self.attn_model = Model(inputs = self.input_article,
+        #                        outputs = self.attn_article_sentence_encoder_1)
 
 
+    def compile(self, model):
+        model.compile(optimizer="adam",
+                      loss="categorical_crossentropy",
+                      metrics = ["accuracy"])
     def save(self):
         pass
 
