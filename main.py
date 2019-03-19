@@ -19,7 +19,7 @@ if __name__ == "__main__":
     n_sentence_heads = [8, 8, 8]
     train_path = "./sample_set.csv"
     dev_path = "./sample_set.csv"
-    max_vocabulary = 100
+    max_vocabulary = 90
 
     # Build Vocabulary #
     #bv = BuildVocabulary()
@@ -28,8 +28,8 @@ if __name__ == "__main__":
 
     # Testing #
 
-    max_vocabulary = 100
-    n_samples = 15000
+    max_vocabulary = 90
+    n_samples = 10000
 
     x_pos_articles = np.random.randint(low = 1,
                                    high = 50,
@@ -42,13 +42,13 @@ if __name__ == "__main__":
                                    size = (n_samples, summary_max_sents,
                                            summary_max_words_per_sent)
                                    )
-    x_neg_articles = np.random.randint(low = 40,
+    x_neg_articles = np.random.randint(low = 25,
                                    high = 90,
                                    size = (n_samples, document_max_sents,
                                            document_max_words_per_sent)
                                    )
 
-    x_neg_summaries = np.random.randint(low = 40,
+    x_neg_summaries = np.random.randint(low = 25,
                                    high = 90,
                                    size = (n_samples, summary_max_sents,
                                            summary_max_words_per_sent)
@@ -82,31 +82,29 @@ if __name__ == "__main__":
     ht.compile(ht.model)
 
     #ht.load(ht.model, "./second_version_weights.h5")
-    ht.model.fit([x_articles, x_summaries],
-                  y = y, batch_size = 64,
-                  epochs = 1, verbose = 1,
-                  validation_split=0.2)
+    #ht.model.fit([x_articles, x_summaries],
+    #              y = y, batch_size = 64,
+    #              epochs = 1, verbose = 1)
 
-    ht.save(ht.model, "./second_version_weights.h5")
+    #ht.save(ht.model, "./second_version_weights.h5")
     #print(ht.model.predict([]))
     ht.load(ht.model, "./second_version_weights.h5")
 
     # Visualize Attention #
 
-    #x_article = np.random.randint(low=1, high=50,
+    #x_article = np.random.randint(low=25, high=90,
     #                              size = (1, document_max_sents,
     #                                      document_max_words_per_sent))
-    #np.save("positive_sample.npy", x_article)
+    #np.save("negative_sample.npy", x_article)
 
 
     # Con la NEGATIVA #
-    """
+
     x_article = np.load("negative_sample.npy")
     attns = ht.attn_model.predict(x_article)[0] # (n cabezales ultimo encoder, n frases, n frases)
     attn_head_0 = attns[0]
     attn_head_1 = attns[1]
     attn_head_2 = attns[2]
-    attn_head_3 = attns[3]
 
     import matplotlib.pyplot as plt
 
@@ -140,7 +138,7 @@ if __name__ == "__main__":
     for i in range(len(x_article[0])):
         counts.append(0)
         for j in range(len(x_article[0][i])):
-            if 40 < x_article[0][i][j] < 50:
+            if 25 < x_article[0][i][j] < 50:
                 counts[-1] += 1
 
     # Frase clavada! (4) #
@@ -167,17 +165,22 @@ if __name__ == "__main__":
 
     print("La frase que menos aporta (promedio de todos los cabezales del último multihead attention): %d" % v_sum[0].argmin())
     print("La frase que más aporta (promedio de todos los cabezales del último multihead attention): %d" % v_sum[0].argmax())
-    """
 
+    for i in range(len(counts)):
+        print(i," - ",counts[i])
 
     # CON LA POSITIVA #
+
+    #x_article = np.random.randint(low=1, high=50,
+    #                              size = (1, document_max_sents,
+    #                                      document_max_words_per_sent))
+    #np.save("positive_sample.npy", x_article)
 
     x_article = np.load("positive_sample.npy")
     attns = ht.attn_model.predict(x_article)[0]  # (n cabezales ultimo encoder, n frases, n frases)
     attn_head_0 = attns[0]
     attn_head_1 = attns[1]
     attn_head_2 = attns[2]
-    attn_head_3 = attns[3]
 
     import matplotlib.pyplot as plt
 
@@ -211,7 +214,7 @@ if __name__ == "__main__":
     for i in range(len(x_article[0])):
         counts.append(0)
         for j in range(len(x_article[0][i])):
-            if 40 < x_article[0][i][j] < 50:
+            if 25 < x_article[0][i][j] < 50:
                 counts[-1] += 1
 
     # Frase clavada! () #

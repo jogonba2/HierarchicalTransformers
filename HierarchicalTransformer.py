@@ -53,6 +53,9 @@ class HierarchicalTransformer():
         self.e_summary = self.embedding(self.input_summary)
 
         # Adding Word embeddings and Positional embeddings #
+        # Los positional embeddings funcionan mejor si hay relaciones temporales,
+        # en el caso de prueba NO las hay! (secuencias aleatorias), funciona mejor sin positional embeddings
+        # tanto a nivel de palabras como de frases!
         self.ep_article = TimeDistributed(PositionalEncoding())(self.e_article)
         self.ep_summary = TimeDistributed(PositionalEncoding())(self.e_summary)
 
@@ -67,6 +70,11 @@ class HierarchicalTransformer():
         self.z_summary_word_encoder_1 = TimeDistributed(GlobalMaxPooling1D())(self.z_summary_word_encoder_1)
 
         # Sentence Encoders (shared) #
+
+        # Positional Encodings para orden sobre frases! #
+        #self.z_article_word_encoder_1 = PositionalEncoding()(self.z_article_word_encoder_1)
+        #self.z_summary_word_encoder_1 = PositionalEncoding()(self.z_summary_word_encoder_1)
+
         self.sentence_encoder_1 = SentenceEncoderBlock(self.output_sentence_encoder_dims[0],
                                                        self.sentence_attention_dims[0],
                                                        self.n_sentence_heads[0])
@@ -74,7 +82,7 @@ class HierarchicalTransformer():
         self.article_sentence_encoder_1 = self.sentence_encoder_1(self.z_article_word_encoder_1)
         self.z_article_sentence_encoder_1 = Lambda(lambda x: x[0])(self.article_sentence_encoder_1)
         self.z_article_sentence_encoder_1 = GlobalMaxPooling1D()(self.z_article_sentence_encoder_1)
-        self.attn_article_sentence_encoder_1 = Lambda(lambda x: x[1])(self.article_sentence_encoder_1) # Solo de los documentos #
+        self.attn_article_sentence_encoder_1 = Lambda(lambda x: x[1])(self.article_sentence_encoder_1)
 
         self.summary_sentence_encoder_1 = self.sentence_encoder_1(self.z_summary_word_encoder_1)
         self.z_summary_sentence_encoder_1 = Lambda(lambda x: x[0])(self.summary_sentence_encoder_1)
@@ -97,7 +105,6 @@ class HierarchicalTransformer():
 
         self.attn_model = Model(inputs = self.input_article,
                                 outputs = self.attn_article_sentence_encoder_1)
-
 
     def compile(self, model):
         model.compile(optimizer="adam",
