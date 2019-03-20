@@ -1,35 +1,21 @@
+from keras.preprocessing.sequence import pad_sequences
 import pandas as pd
+import numpy as np
+
 
 class StringProcessing:
 
-    def __init__(self, max_vocabulary,
-                 document_max_sents,
-                 document_max_words_per_sent,
-                 summary_max_sents,
-                 summary_max_words_per_sent,
-                 vocabulary_path,
-                 train_path,
-                 dev_path = None,
-                 test_path = None):
+    def __init__(self, vocabulary):
+        self.PAD_TOKEN = 0
+        self.UNK_TOKEN = 1
+        self.vocabulary = vocabulary
 
-        self.train_path = train_path
-        self.train = self.__load_csv_samples(self.train_path) if self.train_path else None
-        self.dev_path = dev_path
-        self.dev = self.__load_csv_samples(self.dev_path) if self.dev_path else None
-        self.test_path = test_path
-        self.test = self.__load_csv_samples(self.test_path) if self.test_path else None
-        self.max_vocabulary = max_vocabulary
-        self.document_max_sents = document_max_sents
-        self.document_max_words_per_sent = document_max_words_per_sent
-        self.summary_max_sents = summary_max_sents
-        self.summary_max_words_per_sent = summary_max_words_per_sent
-        self.vocabulary_path = vocabulary_path
-        self.tokenizer_dict = {}
-        self.untokenizer_dict = {}
-
-    def __load_csv_samples(self, csv_path):
+    @staticmethod
+    def load_csv_samples(csv_path):
         aux_samples = []
-        for chunk in pd.read_csv(csv_path, sep='\s*\t\s*', lineterminator="\n", chunksize=20000, engine="python", encoding="utf8"):
+        for chunk in pd.read_csv(csv_path, sep='\s*\t\s*',
+                                 lineterminator="\n", chunksize=20000,
+                                 engine="python", encoding="utf8"):
             aux_samples.append(chunk)
 
         csv_samples = pd.concat(aux_samples, axis=0)
@@ -37,6 +23,48 @@ class StringProcessing:
 
         return csv_samples["TEXT"].tolist(), csv_samples["SUMMARY"].tolist()
 
-    def load_vocabulary(self):
-        pass
+    def represent_sentence(self, sentence, word_delimiter = " "):
+        if not sentence: return None
+        sent = sentence.split(word_delimiter)
+        r = []
+        for w in sent:
+            if w in self.vocabulary:
+                r.append(self.vocabulary[w])
+            else:
+                r.append(self.UNK_TOKEN)
+        return r
 
+    def represent_documents(self, documents, max_sentences,
+                            max_words_per_sentence,
+                            word_delimiter = " ",
+                            sentence_delimiter = " . "):
+
+        return [self.represent_document(document, max_sentences,
+                                        max_words_per_sentence,
+                                        word_delimiter,
+                                        sentence_delimiter)
+                for document in documents]
+
+    # Padding PRE, Truncating POST #
+    def represent_document(self, document, max_sentences,
+                           max_words_per_sentence,
+                           word_delimiter = " ",
+                           sentence_delimiter = " . "):
+
+        if not document:
+            return np.zeros((max_sentences, max_words_per_sentence), dtype="int32")
+
+        sentences = document.split(sentence_delimiter)
+
+        repr_sentences = [self.represent_sentence(sentence, word_delimiter) if sentence \
+                          is not None else [] for sentence in sentences]
+
+        repr_sentences = pad_sequences(repr_sentences, maxlen = max_words_per_sentence,
+                                       dtype="int32", padding="pre", truncating="post",
+                                       value = 0)
+
+        repr_document = pad_sequences([repr_sentences], maxlen = max_sentences,
+                                       dtype="int32", padding="pre", truncating="post",
+                                       value = 0)[0]
+
+        return repr_document

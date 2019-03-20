@@ -23,7 +23,11 @@ class SelfAttention(Layer):
 
         super(SelfAttention, self).build(input_shape)
 
-    def call(self, x):
+    def compute_mask(self, inputs, mask=None):
+        # Just pass the received mask from previous layer, to the next layer
+        return mask
+
+    def call(self, x, mask=None):
         q = K.dot(x, self.wq)
         k = K.dot(x, self.wk)
         v = K.dot(x, self.wv)

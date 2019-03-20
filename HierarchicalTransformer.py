@@ -2,10 +2,11 @@ from WordEncoderBlock import WordEncoderBlock
 from SentenceEncoderBlock import SentenceEncoderBlock
 from PositionalEncoding import PositionalEncoding
 from LayerNormalization import LayerNormalization
+from MaskingGlobalPooling import MaskingGlobalPooling
 from keras.models import Model
 from keras import backend as K
 from keras.layers import (Input, GlobalMaxPooling1D, Dense,
-                          SpatialDropout1D, Embedding,
+                          Masking, Embedding, Flatten,
                           TimeDistributed, Lambda, Concatenate)
 
 class HierarchicalTransformer():
@@ -21,7 +22,9 @@ class HierarchicalTransformer():
                  word_attention_dims = [64, 64, 64],
                  sentence_attention_dims = [64, 64, 64],
                  n_word_heads = [8, 8, 8],
-                 n_sentence_heads = [8, 8, 8]):
+                 n_sentence_heads = [8, 8, 8],
+                 pe_sentences = True,
+                 pe_words = True):
 
         self.document_max_sents = document_max_sents
         self.summary_max_sents = summary_max_sents
@@ -35,8 +38,11 @@ class HierarchicalTransformer():
         self.sentence_attention_dims = sentence_attention_dims
         self.n_word_heads = n_word_heads
         self.n_sentence_heads = n_sentence_heads
+        self.pe_sentences = pe_sentences
+        self.pe_words = pe_words
         self.n_word_encoders = len(self.output_word_encoder_dims)
         self.n_sentence_encoders = len(self.output_sentence_encoder_dims)
+
 
     def build(self):
 
@@ -46,7 +52,7 @@ class HierarchicalTransformer():
         self.input_summary = Input(shape=(self.summary_max_sents,
                                           self.summary_max_words_per_sent))
 
-        self.embedding = Embedding(self.max_vocabulary, self.embedding_dims)
+        self.embedding = Embedding(self.max_vocabulary, self.embedding_dims, mask_zero=False)
 
         # Get Word Embeddings (shared between branches) #
         self.e_article = self.embedding(self.input_article)
@@ -56,43 +62,73 @@ class HierarchicalTransformer():
         # Los positional embeddings funcionan mejor si hay relaciones temporales,
         # en el caso de prueba NO las hay! (secuencias aleatorias), funciona mejor sin positional embeddings
         # tanto a nivel de palabras como de frases!
-        self.ep_article = TimeDistributed(PositionalEncoding())(self.e_article)
-        self.ep_summary = TimeDistributed(PositionalEncoding())(self.e_summary)
+        if self.pe_words:
+            self.ep_article = TimeDistributed(PositionalEncoding())(self.e_article)
+            self.ep_summary = TimeDistributed(PositionalEncoding())(self.e_summary)
+        else:
+            self.ep_article = self.e_article
+            self.ep_summary = self.e_summary
 
-        # Word Encoders (shared) #
-        self.word_encoder_1 = WordEncoderBlock(self.output_word_encoder_dims[0],
-                                               self.word_attention_dims[0],
-                                               self.n_word_heads[0])
+        # Word Encoders#
 
-        self.z_article_word_encoder_1 = TimeDistributed(self.word_encoder_1)(self.ep_article)
-        self.z_summary_word_encoder_1 = TimeDistributed(self.word_encoder_1)(self.ep_summary)
-        self.z_article_word_encoder_1 = TimeDistributed(GlobalMaxPooling1D())(self.z_article_word_encoder_1)
-        self.z_summary_word_encoder_1 = TimeDistributed(GlobalMaxPooling1D())(self.z_summary_word_encoder_1)
+        ant_layers = (self.ep_article, self.ep_summary)
+        for i in range(self.n_word_encoders):
+            self.word_encoder = WordEncoderBlock(self.output_word_encoder_dims[i],
+                                                 self.word_attention_dims[i],
+                                                 self.n_word_heads[i])
+            self.z_article_word_encoder = TimeDistributed(self.word_encoder)(ant_layers[0])
+            self.z_summary_word_encoder = TimeDistributed(self.word_encoder)(ant_layers[1])
+            ant_layers = (self.z_article_word_encoder, self.z_summary_word_encoder)
 
-        # Sentence Encoders (shared) #
+        #self.z_article_word_encoder = Lambda(lambda x: x, output_shape=lambda s:s)(self.z_article_word_encoder)
+        #self.z_summary_word_encoder = Lambda(lambda x: x, output_shape=lambda s: s)(self.z_summary_word_encoder)
+        self.z_article_word_encoder = TimeDistributed(GlobalMaxPooling1D())(self.z_article_word_encoder)
+        self.z_summary_word_encoder = TimeDistributed(GlobalMaxPooling1D())(self.z_summary_word_encoder)
 
-        # Positional Encodings para orden sobre frases! #
-        #self.z_article_word_encoder_1 = PositionalEncoding()(self.z_article_word_encoder_1)
-        #self.z_summary_word_encoder_1 = PositionalEncoding()(self.z_summary_word_encoder_1)
+        # Sentence Encoders #
 
-        self.sentence_encoder_1 = SentenceEncoderBlock(self.output_sentence_encoder_dims[0],
-                                                       self.sentence_attention_dims[0],
-                                                       self.n_sentence_heads[0])
+        # Positional Encodings para orden sobre frases #
+        if self.pe_sentences:
+            self.z_article_word_encoder = PositionalEncoding()(self.z_article_word_encoder)
+            self.z_summary_word_encoder = PositionalEncoding()(self.z_summary_word_encoder)
 
-        self.article_sentence_encoder_1 = self.sentence_encoder_1(self.z_article_word_encoder_1)
-        self.z_article_sentence_encoder_1 = Lambda(lambda x: x[0])(self.article_sentence_encoder_1)
-        self.z_article_sentence_encoder_1 = GlobalMaxPooling1D()(self.z_article_sentence_encoder_1)
-        self.attn_article_sentence_encoder_1 = Lambda(lambda x: x[1])(self.article_sentence_encoder_1)
+        self.all_article_attns = []
+        ant_layers = (self.z_article_word_encoder, self.z_summary_word_encoder)
 
-        self.summary_sentence_encoder_1 = self.sentence_encoder_1(self.z_summary_word_encoder_1)
-        self.z_summary_sentence_encoder_1 = Lambda(lambda x: x[0])(self.summary_sentence_encoder_1)
-        self.z_summary_sentence_encoder_1 = GlobalMaxPooling1D()(self.z_summary_sentence_encoder_1)
+        for i in range(self.n_sentence_encoders):
+            self.sentence_encoder = SentenceEncoderBlock(self.output_sentence_encoder_dims[i],
+                                                         self.sentence_attention_dims[i],
+                                                         self.n_sentence_heads[i])
 
-        self.difference = Lambda(lambda x: K.abs(x[0] - x[1]))([self.z_article_sentence_encoder_1,
-                                                                self.z_summary_sentence_encoder_1])
+            self.article_sentence_encoder = self.sentence_encoder(ant_layers[0])
+            self.summary_sentence_encoder = self.sentence_encoder(ant_layers[1])
 
-        self.collapsed = Concatenate(axis=-1)([self.z_article_sentence_encoder_1,
-                                               self.z_summary_sentence_encoder_1,
+            self.z_article_sentence_encoder = Lambda(lambda x: x[0])(self.article_sentence_encoder)
+            self.z_summary_sentence_encoder = Lambda(lambda x: x[0])(self.summary_sentence_encoder)
+
+            self.attn_article_sentence_encoder = Lambda(lambda x: x[1])(self.article_sentence_encoder)
+            self.all_article_attns.append(self.attn_article_sentence_encoder)
+
+            ant_layers = (self.z_article_sentence_encoder, self.z_summary_sentence_encoder)
+
+        # Prepare all attentions #
+        if self.n_sentence_encoders > 1:
+            self.all_article_attns = [Lambda(lambda a: K.expand_dims(a, 1))(x) for x in self.all_article_attns]
+            self.all_article_attns = Concatenate(axis=1)(self.all_article_attns)
+
+        ##########################
+
+
+        #self.z_article_sentence_encoder = Lambda(lambda x: x, output_shape=lambda s: s)(self.z_article_sentence_encoder)
+        #self.z_summary_sentence_encoder = Lambda(lambda x: x, output_shape=lambda s: s)(self.z_summary_sentence_encoder)
+        self.z_article_sentence_encoder = GlobalMaxPooling1D()(self.z_article_sentence_encoder)
+        self.z_summary_sentence_encoder = GlobalMaxPooling1D()(self.z_summary_sentence_encoder)
+
+        self.difference = Lambda(lambda x: K.abs(x[0] - x[1]))([self.z_article_sentence_encoder,
+                                                                self.z_summary_sentence_encoder])
+
+        self.collapsed = Concatenate(axis=-1)([self.z_article_sentence_encoder,
+                                               self.z_summary_sentence_encoder,
                                                self.difference])
 
         self.collapsed = LayerNormalization()(self.collapsed)
@@ -104,7 +140,7 @@ class HierarchicalTransformer():
                            outputs = [self.output])
 
         self.attn_model = Model(inputs = self.input_article,
-                                outputs = self.attn_article_sentence_encoder_1)
+                                outputs = self.all_article_attns)
 
     def compile(self, model):
         model.compile(optimizer="adam",

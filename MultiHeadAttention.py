@@ -24,7 +24,11 @@ class MultiHeadAttention(Layer):
 
         super(MultiHeadAttention, self).build(input_shape)
 
-    def call(self, x):
+    def compute_mask(self, inputs, mask=None):
+        # Just pass the received mask from previous layer, to the next layer
+        return mask
+
+    def call(self, x, mask=None):
         all = [self.heads[i](x) for i in range(self.n_heads)]
         all_heads = [all[i][0] for i in range(self.n_heads)]
         all_attns = [K.expand_dims(all[i][1], 1) for i in range(self.n_heads)]

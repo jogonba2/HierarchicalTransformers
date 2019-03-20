@@ -10,13 +10,13 @@ if __name__ == "__main__":
     summary_max_sents = 4
     document_max_words_per_sent = 25
     summary_max_words_per_sent = 15
-    embedding_dims = 64
-    output_word_encoder_dims = [64, 64, 64] # Debe coincidir con los embeddings para las conexiones residuales
-    output_sentence_encoder_dims = [64, 64, 64] # Debe coincidir con los embeddings para las conexiones residuales
-    word_attention_dims = [16, 16, 16]
-    sentence_attention_dims = [16, 16, 16]
-    n_word_heads = [8, 8, 8]
-    n_sentence_heads = [8, 8, 8]
+    embedding_dims = 16
+    output_word_encoder_dims = [16, 16] # Debe coincidir con los embeddings para las conexiones residuales
+    output_sentence_encoder_dims = [16, 16] # Debe coincidir con los embeddings para las conexiones residuales
+    word_attention_dims = [4, 4]
+    sentence_attention_dims = [8, 8]
+    n_word_heads = [3, 3] # Todas las capas con el mismo número de cabezales (facilita el decoder)
+    n_sentence_heads = [3, 3] # Todas las capas con el mismo número de cabezales (facilita el decoder)
     train_path = "./sample_set.csv"
     dev_path = "./sample_set.csv"
     max_vocabulary = 90
@@ -58,9 +58,6 @@ if __name__ == "__main__":
     x_summaries = np.concatenate((x_pos_summaries, x_neg_summaries), axis=0)
     y = np.array([1 for i in range(n_samples)] + [0 for i in range(n_samples)])
     y = to_categorical(y, 2)
-    print(x_articles.shape)
-    print(x_summaries.shape)
-    print(y.shape)
 
     # Training #
     ht = HierarchicalTransformer(max_vocabulary = max_vocabulary,
@@ -79,6 +76,7 @@ if __name__ == "__main__":
 
     ht.build()
     print(ht.model.summary())
+
     ht.compile(ht.model)
 
     #ht.load(ht.model, "./second_version_weights.h5")
@@ -101,7 +99,9 @@ if __name__ == "__main__":
     # Con la NEGATIVA #
 
     x_article = np.load("negative_sample.npy")
-    attns = ht.attn_model.predict(x_article)[0] # (n cabezales ultimo encoder, n frases, n frases)
+    attns = ht.attn_model.predict(x_article)[0]
+    print(attns.shape)
+    exit()
     attn_head_0 = attns[0]
     attn_head_1 = attns[1]
     attn_head_2 = attns[2]
