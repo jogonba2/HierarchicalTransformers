@@ -1,7 +1,7 @@
 # Hierarchical Transformers for Extractive Summarization
 
 
-If you use this work, please cite the following references (accepted, pending publication): 
+If you use this work, please cite the following references (accepted but pending publication): 
 
 ```
  @article{shtelke19,
