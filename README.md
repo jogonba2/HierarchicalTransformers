@@ -12,7 +12,7 @@ If you use this work, please cite the following references (accepted, pending pu
   interhash = {},
   intrahash = {},
   journal = {Journal of Intelligent and Fuzzy Systems},
-  number = None,
+  number = {},
   pages = {},
   title = {Extractive Summarization using Siamese Hierarchical Transformer Encoders},
   url = {},
