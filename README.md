@@ -17,7 +17,7 @@ If you use this work, please cite the following references (accepted but pending
   title = {Extractive Summarization using Siamese Hierarchical Transformer Encoders},
   url = {},
   volume = {},
-  year = 2019
+  year = 2020
  }
 ```
 
