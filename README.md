@@ -37,5 +37,3 @@ Sentence Encoder Layer 2 Avg Self Attentions
 Sentence Encoder Layer 2 Avg Self Attentions Sum for Sentences (Final sentence relevance)
 ![alt text](https://github.com/jogonba2/HierarchicalTransformers/blob/master/SumSentenceAvgHeadAttention-Layer2.png)
 
-
-![alt text](https://i.gyazo.com/eb16336a42c2824efe5424dc01e72ab4.png)
