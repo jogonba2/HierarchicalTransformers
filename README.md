@@ -4,21 +4,24 @@
 If you use this work, please cite the following references (accepted but pending publication): 
 
 ```
- @article{shtelke19,
-  added-at = {},
-  author = {González, José-Ángel and Encarna, Segarra and García-Granada, Fernando and Sanchis, Emilio and Hurtado, Lluís-F.},
-  biburl = {},
-  ee = {},
-  interhash = {},
-  intrahash = {},
-  journal = {Journal of Intelligent and Fuzzy Systems},
-  number = {},
-  pages = {},
-  title = {Extractive Summarization using Siamese Hierarchical Transformer Encoders},
-  url = {},
-  volume = {},
-  year = 2020
- }
+@article{DBLP:journals/jifs/GonzalezSGSH20,
+  author    = {Jos{\'{e}}{-}{\'{A}}ngel Gonz{\'{a}}lez and
+               Encarna Segarra and
+               Fernando Garc{\'{\i}}a{-}Granada and
+               Emilio Sanchis and
+               Llu{\'{\i}}s{-}F. Hurtado},
+  title     = {Extractive summarization using siamese hierarchical transformer encoders},
+  journal   = {J. Intell. Fuzzy Syst.},
+  volume    = {39},
+  number    = {2},
+  pages     = {2409--2419},
+  year      = {2020},
+  url       = {https://doi.org/10.3233/JIFS-179901},
+  doi       = {10.3233/JIFS-179901},
+  timestamp = {Thu, 10 Sep 2020 16:38:01 +0200},
+  biburl    = {https://dblp.org/rec/journals/jifs/GonzalezSGSH20.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
 ```
 
 
